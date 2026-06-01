@@ -12,18 +12,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16.4
+      - name: Select Xcode
         run: |
-          sudo xcode-select -s /Applications/Xcode_16.4.app
+          sudo xcode-select -s /Applications/Xcode_16.4.app 2>/dev/null || sudo xcode-select -s /Applications/Xcode_16.3.app 2>/dev/null || true
           xcodebuild -version
-
-      - name: Install iOS platform if missing
-        run: |
-          # Check if iOS platform is available
-          if ! xcodebuild -downloadPlatform iOS 2>/dev/null; then
-            echo "Trying to install iOS platform..."
-            xcodebuild -downloadPlatform iOS || true
-          fi
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -34,16 +26,21 @@ jobs:
 
       - name: Resolve Swift Package Dependencies
         working-directory: MonoApp
-        run: xcodebuild -resolvePackageDependencies -project Mono.xcodeproj -scheme Mono -clonedSourcePackagesDirPath SourcePackages
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project Mono.xcodeproj \
+            -scheme Mono \
+            -clonedSourcePackagesDirPath SourcePackages
 
-      - name: Build (unsigned, for generic iOS device)
+      - name: Build Archive (unsigned)
         working-directory: MonoApp
         run: |
           set -o pipefail
-          xcodebuild build \
+          xcodebuild archive \
             -project Mono.xcodeproj \
             -scheme Mono \
             -configuration Release \
+            -archivePath "$RUNNER_TEMP/Mono.xcarchive" \
             -destination "generic/platform=iOS" \
             -sdk iphoneos \
             CODE_SIGN_IDENTITY="" \
@@ -52,20 +49,121 @@ jobs:
             COMPILER_INDEX_STORE_ENABLE=NO \
             ENABLE_BITCODE=NO \
             STRIP_SWIFT_SYMBOLS=YES \
-            ONLY_ACTIVE_ARCH=NO \
+            ONLY_ACTIVE_ARCH=YES \
+            GENERATE_INFOPLIST_FILE=NO \
             2>&1 | tee /tmp/build.log
 
-      - name: Verify Mono binary exists
+      - name: Verify Archive and Fix Info.plist
         run: |
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Mono.app" -path "*/Build/Products/Release-iphoneos/*" | head -1)
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: Mono.app not found in DerivedData"
-            find ~/Library/Developer/Xcode/DerivedData -name "*.app" 2>/dev/null || true
-            exit 1
+          ARCHIVE_PATH="$RUNNER_TEMP/Mono.xcarchive"
+          APP_PATH="$ARCHIVE_PATH/Products/Applications/Mono.app"
+
+          if [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: Mono.app not found in archive at $APP_PATH"
+            echo "Looking for .app bundles in archive..."
+            find "$ARCHIVE_PATH" -name "*.app" -type d 2>/dev/null || true
+            echo "---"
+            echo "Trying DerivedData fallback..."
+            APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Mono.app" -path "*/Build/Products/Release-iphoneos/*" | head -1)
+            if [ -z "$APP_PATH" ]; then
+              echo "ERROR: Mono.app not found in DerivedData either!"
+              find ~/Library/Developer/Xcode/DerivedData -name "*.app" -type d 2>/dev/null || true
+              exit 1
+            fi
           fi
+
           echo "Found app at: $APP_PATH"
-          
-          # Check binary exists
+          echo "Contents of app bundle:"
+          ls -la "$APP_PATH/"
+
+          # Check if Info.plist exists in the app bundle
+          if [ ! -f "$APP_PATH/Info.plist" ]; then
+            echo "WARNING: Info.plist not found in app bundle! Attempting to fix..."
+
+            # Try to find the Info.plist that Xcode processed
+            PROCESSED_PLIST=$(find "$APP_PATH" -name "Info.plist" 2>/dev/null | head -1)
+            if [ -n "$PROCESSED_PLIST" ] && [ "$PROCESSED_PLIST" != "$APP_PATH/Info.plist" ]; then
+              echo "Found Info.plist at: $PROCESSED_PLIST"
+              cp "$PROCESSED_PLIST" "$APP_PATH/Info.plist"
+              echo "Copied Info.plist to app root."
+            else
+              echo "Processing Info.plist from source..."
+              # Use PlistBuddy to create a proper Info.plist with all required keys
+              SOURCE_PLIST="$GITHUB_WORKSPACE/MonoApp/Mono/Info.plist"
+              if [ -f "$SOURCE_PLIST" ]; then
+                # Copy the source plist and add any missing keys that Xcode normally generates
+                cp "$SOURCE_PLIST" "$APP_PATH/Info.plist"
+
+                # Ensure required keys exist
+                /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string Mono" "$APP_PATH/Info.plist" 2>/dev/null || \
+                  /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable Mono" "$APP_PATH/Info.plist" 2>/dev/null || true
+
+                /usr/libexec/PlistBuddy -c "Add :CFBundlePackageType string APPL" "$APP_PATH/Info.plist" 2>/dev/null || \
+                  /usr/libexec/PlistBuddy -c "Set :CFBundlePackageType APPL" "$APP_PATH/Info.plist" 2>/dev/null || true
+
+                /usr/libexec/PlistBuddy -c "Add :CFBundleInfoDictionaryVersion string 6.0" "$APP_PATH/Info.plist" 2>/dev/null || \
+                  /usr/libexec/PlistBuddy -c "Set :CFBundleInfoDictionaryVersion 6.0" "$APP_PATH/Info.plist" 2>/dev/null || true
+
+                /usr/libexec/PlistBuddy -c "Add :MinimumOSVersion string 17.0" "$APP_PATH/Info.plist" 2>/dev/null || \
+                  /usr/libexec/PlistBuddy -c "Set :MinimumOSVersion 17.0" "$APP_PATH/Info.plist" 2>/dev/null || true
+
+                echo "Info.plist created from source with required keys."
+              else
+                echo "ERROR: Source Info.plist not found at $SOURCE_PLIST"
+                # Create a minimal Info.plist
+                cat > "$APP_PATH/Info.plist" << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>Mono</string>
+            <key>CFBundleDisplayName</key>
+            <string>Mono</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.mono.app</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>CFBundleExecutable</key>
+            <string>Mono</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>MinimumOSVersion</key>
+            <string>17.0</string>
+            <key>UIUserInterfaceStyle</key>
+            <string>Dark</string>
+            <key>UIBackgroundModes</key>
+            <array>
+              <string>audio</string>
+            </array>
+            <key>NSAppTransportSecurity</key>
+            <dict>
+              <key>NSAllowsArbitraryLoads</key>
+              <true/>
+            </dict>
+            <key>UILaunchScreen</key>
+            <dict/>
+            <key>UISupportedInterfaceOrientations</key>
+            <array>
+              <string>UIInterfaceOrientationPortrait</string>
+            </array>
+            <key>UIRequiresFullScreen</key>
+            <true/>
+          </dict>
+          </plist>
+          PLIST
+                echo "Minimal Info.plist created."
+              fi
+            fi
+          else
+            echo "Info.plist found in app bundle - OK"
+          fi
+
+          # Verify binary exists
           if [ ! -f "$APP_PATH/Mono" ]; then
             echo "ERROR: Mono binary not found in app bundle!"
             ls -la "$APP_PATH/"
@@ -73,21 +171,35 @@ jobs:
           fi
           echo "Binary size: $(du -h "$APP_PATH/Mono" | cut -f1)"
           echo "App bundle size: $(du -sh "$APP_PATH" | cut -f1)"
+          echo "Info.plist size: $(du -h "$APP_PATH/Info.plist" | cut -f1)"
+
+          # Store the app path for later steps
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
 
       - name: Create Unsigned IPA
         run: |
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Mono.app" -path "*/Build/Products/Release-iphoneos/*" | head -1)
-          
           # Create IPA structure
           IPA_DIR=$(mktemp -d)
           mkdir -p "$IPA_DIR/Payload"
           cp -R "$APP_PATH" "$IPA_DIR/Payload/"
-          
-          # Create IPA
+
+          # Verify Info.plist is in the Payload
+          if [ ! -f "$IPA_DIR/Payload/Mono.app/Info.plist" ]; then
+            echo "ERROR: Info.plist still missing after fix step!"
+            ls -la "$IPA_DIR/Payload/Mono.app/"
+            exit 1
+          fi
+
+          echo "Creating IPA..."
           cd "$IPA_DIR"
-          zip -r "$RUNNER_TEMP/Mono.ipa" Payload/
-          echo "IPA created at: $RUNNER_TEMP/Mono.ipa"
+          zip --symlinks -r "$RUNNER_TEMP/Mono.ipa" Payload/
+
+          echo "IPA created successfully!"
           ls -lh "$RUNNER_TEMP/Mono.ipa"
+
+          # Verify IPA contents
+          echo "Verifying IPA contents..."
+          unzip -l "$RUNNER_TEMP/Mono.ipa" | grep -E "(Info\.plist|Mono$)" | head -10
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
