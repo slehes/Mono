@@ -1,6 +1,5 @@
 import SwiftUI
 import UIKit
-import LiquidGlassKit
 
 // UIViewRepresentable for LiquidGlassSlider
 struct GlassSlider: UIViewRepresentable {

@@ -7,9 +7,6 @@ options:
   defaultConfig: Debug
 
 packages:
-  LiquidGlassKit:
-    url: https://github.com/DnV1eX/LiquidGlassKit.git
-    from: 1.0.0
   Alamofire:
     url: https://github.com/Alamofire/Alamofire.git
     from: 5.9.0
@@ -22,8 +19,6 @@ targets:
     sources:
       - path: Mono
     dependencies:
-      - package: LiquidGlassKit
-        product: LiquidGlassKit
       - package: Alamofire
         product: Alamofire
     info:

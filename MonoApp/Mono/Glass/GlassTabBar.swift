@@ -1,5 +1,4 @@
 import SwiftUI
-import LiquidGlassKit
 
 struct GlassTabBar: View {
     @Binding var selection: Int

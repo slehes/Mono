@@ -1,6 +1,5 @@
 import SwiftUI
 import UIKit
-import LiquidGlassKit
 
 // MARK: - UIViewRepresentable wrapper for LiquidGlassEffectView
 
