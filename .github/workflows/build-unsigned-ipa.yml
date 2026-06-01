@@ -12,8 +12,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16
-        run: sudo xcode-select -s /Applications/Xcode_16.0.app
+      - name: List available Xcode versions
+        run: ls /Applications/Xcode*.app || true
+
+      - name: Select Xcode
+        run: |
+          # Try Xcode 16.2 first, then 16.1, then 16.0
+          for ver in 16.2 16.1 16.0; do
+            if [ -d "/Applications/Xcode_${ver}.app" ]; then
+              echo "Selecting Xcode ${ver}"
+              sudo xcode-select -s /Applications/Xcode_${ver}.app
+              break
+            fi
+          done
+          xcodebuild -version
 
       - name: Install xcodegen
         run: brew install xcodegen
@@ -26,14 +38,16 @@ jobs:
         working-directory: MonoApp
         run: xcodebuild -resolvePackageDependencies -project Mono.xcodeproj -scheme Mono -clonedSourcePackagesDirPath SourcePackages
 
-      - name: Build (unsigned, for generic iOS)
+      - name: Build (unsigned, for generic iOS device)
         working-directory: MonoApp
         run: |
+          set -o pipefail
           xcodebuild build \
             -project Mono.xcodeproj \
             -scheme Mono \
             -configuration Release \
             -destination "generic/platform=iOS" \
+            -sdk iphoneos \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -43,7 +57,7 @@ jobs:
             ONLY_ACTIVE_ARCH=NO \
             2>&1 | tee /tmp/build.log
 
-      - name: Create Unsigned IPA
+      - name: Verify Mono binary exists
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Mono.app" -path "*/Build/Products/Release-iphoneos/*" | head -1)
           if [ -z "$APP_PATH" ]; then
@@ -52,7 +66,20 @@ jobs:
             exit 1
           fi
           echo "Found app at: $APP_PATH"
+          
+          # Check binary exists
+          if [ ! -f "$APP_PATH/Mono" ]; then
+            echo "ERROR: Mono binary not found in app bundle!"
+            ls -la "$APP_PATH/"
+            exit 1
+          fi
+          echo "Binary size: $(du -h "$APP_PATH/Mono" | cut -f1)"
+          echo "App bundle size: $(du -sh "$APP_PATH" | cut -f1)"
 
+      - name: Create Unsigned IPA
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Mono.app" -path "*/Build/Products/Release-iphoneos/*" | head -1)
+          
           # Create IPA structure
           IPA_DIR=$(mktemp -d)
           mkdir -p "$IPA_DIR/Payload"
