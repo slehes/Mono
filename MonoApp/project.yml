@@ -9,7 +9,7 @@ options:
 packages:
   LiquidGlassKit:
     url: https://github.com/DnV1eX/LiquidGlassKit.git
-    from: 0.1.0
+    from: 1.0.0
   Alamofire:
     url: https://github.com/Alamofire/Alamofire.git
     from: 5.9.0
