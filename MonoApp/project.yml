@@ -1,0 +1,37 @@
+name: Mono
+options:
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "15"
+  createIntermediateGroups: true
+  defaultConfig: Debug
+
+packages:
+  LiquidGlassKit:
+    url: https://github.com/DnV1eX/LiquidGlassKit.git
+    from: 0.1.0
+  Alamofire:
+    url: https://github.com/Alamofire/Alamofire.git
+    from: 5.9.0
+
+targets:
+  Mono:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Mono
+    dependencies:
+      - package: LiquidGlassKit
+        product: LiquidGlassKit
+      - package: Alamofire
+        product: Alamofire
+    info:
+      path: Mono/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mono.app
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_FILE: Mono/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

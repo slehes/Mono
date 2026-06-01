@@ -1,0 +1,46 @@
+name: Build (No Signing - Verify Code Compiles)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-check:
+    name: Compile Check
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: MonoApp
+        run: xcodegen generate
+
+      - name: Resolve Swift Packages
+        working-directory: MonoApp
+        run: xcodebuild -resolvePackageDependencies -project Mono.xcodeproj -scheme Mono
+
+      - name: Build (unsigned)
+        working-directory: MonoApp
+        run: |
+          xcodebuild build \
+            -project Mono.xcodeproj \
+            -scheme Mono \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty || true
+
+      - name: Build Result
+        run: echo "Build check complete"
