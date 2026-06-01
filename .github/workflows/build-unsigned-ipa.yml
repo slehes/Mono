@@ -12,20 +12,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: List available Xcode versions
-        run: ls /Applications/Xcode*.app || true
-
-      - name: Select Xcode
+      - name: Select Xcode 16.4
         run: |
-          # Try Xcode 16.2 first, then 16.1, then 16.0
-          for ver in 16.2 16.1 16.0; do
-            if [ -d "/Applications/Xcode_${ver}.app" ]; then
-              echo "Selecting Xcode ${ver}"
-              sudo xcode-select -s /Applications/Xcode_${ver}.app
-              break
-            fi
-          done
+          sudo xcode-select -s /Applications/Xcode_16.4.app
           xcodebuild -version
+
+      - name: Install iOS platform if missing
+        run: |
+          # Check if iOS platform is available
+          if ! xcodebuild -downloadPlatform iOS 2>/dev/null; then
+            echo "Trying to install iOS platform..."
+            xcodebuild -downloadPlatform iOS || true
+          fi
 
       - name: Install xcodegen
         run: brew install xcodegen
