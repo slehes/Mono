@@ -6,6 +6,8 @@ struct HomeScreen: View {
     @State private var selectedAlbum: MonoAlbum?
     @State private var selectedPlaylist: MonoPlaylist?
     @State private var selectedArtist: MonoArtist?
+    @Binding var showAuth: Bool
+    @Binding var isAuthenticated: Bool
 
     var body: some View {
         NavigationStack {
@@ -83,15 +85,30 @@ struct HomeScreen: View {
                     .foregroundStyle(.white)
             }
             Spacer()
-            ZStack {
-                GlassEffectView(cornerRadius: 20)
-                Image("mono_logo")
-                    .resizable()
-                    .scaledToFit()
-                    .padding(6)
+            Button {
+                if isAuthenticated {
+                    // Logout
+                    Keychain.accessToken = nil
+                    isAuthenticated = false
+                } else {
+                    showAuth = true
+                }
+            } label: {
+                ZStack {
+                    GlassEffectView(cornerRadius: 20)
+                    if isAuthenticated {
+                        Image(systemName: "person.crop.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(Color.monoAccent)
+                    } else {
+                        Image(systemName: "person.crop.circle.badge.plus")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             }
-            .frame(width: 44, height: 44)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .padding(.top, 8)
     }

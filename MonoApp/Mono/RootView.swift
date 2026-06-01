@@ -4,21 +4,26 @@ struct RootView: View {
     @State private var isAuthenticated = Keychain.accessToken != nil
     @State private var selectedTab = 0
     @State private var showFullPlayer = false
+    @State private var showAuth = false
     @ObservedObject private var player = PlayerService.shared
 
     var body: some View {
         ZStack {
-            if isAuthenticated {
-                mainContent
-            } else {
-                AuthScreen(isAuthenticated: $isAuthenticated)
-            }
+            mainContent
         }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showFullPlayer) {
             FullScreenPlayer(isPresented: $showFullPlayer)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.hidden)
+        }
+        .sheet(isPresented: $showAuth) {
+            AuthScreen(isAuthenticated: $isAuthenticated)
+        }
+        .onChange(of: isAuthenticated) { newValue in
+            if newValue {
+                showAuth = false
+            }
         }
     }
 
@@ -27,10 +32,10 @@ struct RootView: View {
             // Tab content
             Group {
                 switch selectedTab {
-                case 0: HomeScreen()
+                case 0: HomeScreen(showAuth: $showAuth, isAuthenticated: $isAuthenticated)
                 case 1: SearchScreen()
-                case 2: LibraryScreen()
-                default: HomeScreen()
+                case 2: LibraryScreen(showAuth: $showAuth, isAuthenticated: $isAuthenticated)
+                default: HomeScreen(showAuth: $showAuth, isAuthenticated: $isAuthenticated)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -4,42 +4,74 @@ struct LibraryScreen: View {
     @StateObject private var vm = LibraryViewModel()
     @ObservedObject private var player = PlayerService.shared
     @State private var selectedPlaylist: MonoPlaylist?
+    @Binding var showAuth: Bool
+    @Binding var isAuthenticated: Bool
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.monoBackground.ignoresSafeArea()
 
-                VStack(alignment: .leading, spacing: 0) {
-                    // Header
-                    HStack {
-                        Text("Коллекция")
-                            .font(.system(size: 28, weight: .black, design: .rounded))
+                if !isAuthenticated {
+                    // Not logged in - show prompt
+                    VStack(spacing: 20) {
+                        Spacer()
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 50))
+                            .foregroundStyle(Color.monoAccent.opacity(0.5))
+                        Text("Войдите, чтобы видеть коллекцию")
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+                        Text("После входа здесь будут ваши любимые треки и плейлисты")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.white.opacity(0.5))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
+                        Button {
+                            showAuth = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "arrow.right.circle.fill")
+                                Text("Войти через Яндекс")
+                            }
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 32)
+                            .padding(.vertical, 14)
+                            .background(Capsule().fill(Color.monoAccent))
+                        }
+                        .padding(.top, 8)
                         Spacer()
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 16)
-
-                    // Filter chips
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(LibraryViewModel.LibraryFilter.allCases, id: \.self) { f in
-                                FilterChip(label: f.rawValue, isSelected: vm.filter == f) {
-                                    vm.filter = f
-                                }
-                            }
+                } else if vm.isLoading {
+                    GlassLoadingView()
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Header
+                        HStack {
+                            Text("Коллекция")
+                                .font(.system(size: 28, weight: .black, design: .rounded))
+                                .foregroundStyle(.white)
+                            Spacer()
                         }
                         .padding(.horizontal, 20)
-                    }
-                    .padding(.bottom, 16)
+                        .padding(.top, 16)
+                        .padding(.bottom, 16)
 
-                    if vm.isLoading {
-                        Spacer()
-                        GlassLoadingView()
-                        Spacer()
-                    } else {
+                        // Filter chips
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(LibraryViewModel.LibraryFilter.allCases, id: \.self) { f in
+                                    FilterChip(label: f.rawValue, isSelected: vm.filter == f) {
+                                        vm.filter = f
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 20)
+                        }
+                        .padding(.bottom, 16)
+
                         ScrollView(showsIndicators: false) {
                             LazyVStack(spacing: 12) {
                                 // Liked tracks section
@@ -69,7 +101,7 @@ struct LibraryScreen: View {
                     }
                 }
             }
-            .task { await vm.load() }
+            .task { if isAuthenticated { await vm.load() } }
             .navigationDestination(item: $selectedPlaylist) { PlaylistDetailScreen(playlist: $0) }
         }
     }
