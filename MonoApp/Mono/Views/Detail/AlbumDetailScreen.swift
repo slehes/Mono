@@ -103,7 +103,4 @@ struct AlbumDetailScreen: View {
     }
 }
 
-extension MonoAlbum: Hashable {
-    public static func == (lhs: MonoAlbum, rhs: MonoAlbum) -> Bool { lhs.id == rhs.id }
-    public func hash(into hasher: inout Hasher) { hasher.combine(id) }
-}
+

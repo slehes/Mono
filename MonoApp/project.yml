@@ -1,7 +1,7 @@
 name: Mono
 options:
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "17.0"
   xcodeVersion: "16"
   createIntermediateGroups: true
   defaultConfig: Debug
@@ -15,7 +15,7 @@ targets:
   Mono:
     type: application
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "17.0"
     sources:
       - path: Mono
     dependencies:

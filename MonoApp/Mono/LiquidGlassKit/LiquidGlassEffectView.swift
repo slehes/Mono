@@ -3,6 +3,7 @@
 //  LiquidGlass
 //
 //  Created by Alexey Demin on 2025-12-23.
+//  Modified: Removed iOS 26 native API references for Xcode 16 compat.
 //
 
 import UIKit
@@ -71,14 +72,6 @@ public class LiquidGlassEffect: UIVisualEffect {
     public enum Style {
         case regular, clear
 
-        @available(iOS 26.0, *)
-        var nativeStyle: UIGlassEffect.Style {
-            switch self {
-            case .regular: .regular
-            case .clear: .clear
-            }
-        }
-
         var liquidGlass: LiquidGlass {
             switch self {
             case .regular: .regular
@@ -99,7 +92,7 @@ public class LiquidGlassEffect: UIVisualEffect {
     /// Creates a glass effect with the specified style.
     /// - Parameters:
     ///   - style: The glass effect style.
-    ///   - isNative: Whether to use `UIGlassEffect` on iOS 26+.
+    ///   - isNative: Whether to use native glass effect on iOS 26+ (ignored on older SDKs).
     public init(style: Style, isNative: Bool = true) {
         self.style = style
         self.isNative = isNative
@@ -112,11 +105,6 @@ public class LiquidGlassEffect: UIVisualEffect {
 }
 
 /// A `LiquidGlassContainerEffect` renders multiple glass elements into a combined effect.
-///
-/// When using `LiquidGlassContainerEffect` with a `VisualEffectView` you can
-/// add individual glass elements to the visual effect view's contentView by nesting `VisualEffectView`'s
-/// configured with `LiquidGlassEffect`. In that configuration, the glass container will render all glass elements
-/// in one combined view, behind the visual effect view's `contentView`.
 public class LiquidGlassContainerEffect: UIVisualEffect {
 
     let isNative: Bool
@@ -126,7 +114,7 @@ public class LiquidGlassContainerEffect: UIVisualEffect {
 
     /// Creates a combined glass effect.
     /// - Parameters:
-    ///   - isNative: Whether to use `UIGlassContainerEffect` on iOS 26+.
+    ///   - isNative: Whether to use native glass container on iOS 26+ (ignored on older SDKs).
     public init(isNative: Bool = true) {
         self.isNative = isNative
         super.init()
@@ -146,26 +134,11 @@ extension UIVisualEffectView: AnyVisualEffectView { }
 
 public func VisualEffectView(effect: UIVisualEffect?) -> AnyVisualEffectView {
     if let effect = effect as? LiquidGlassEffect {
-        if #available(iOS 26.0, *), effect.isNative {
-            let nativeEffect = UIGlassEffect(style: effect.style.nativeStyle)
-            nativeEffect.isInteractive = effect.isInteractive
-            nativeEffect.tintColor = effect.tintColor
-            // Returns the native iOS 26 Liquid Glass view
-            return UIVisualEffectView(effect: nativeEffect)
-        } else {
-            // Returns custom iOS 18 implementation
-            return LiquidGlassEffectView(effect: effect)
-        }
+        // Use custom Metal shader implementation (works on iOS 16+)
+        return LiquidGlassEffectView(effect: effect)
     } else if let effect = effect as? LiquidGlassContainerEffect {
-        if #available(iOS 26.0, *), effect.isNative {
-            let nativeEffect = UIGlassContainerEffect()
-            nativeEffect.spacing = effect.spacing
-            // Returns the native iOS 26 Liquid Glass Container view
-            return UIVisualEffectView(effect: nativeEffect)
-        } else {
-            // Returns custom iOS 18 implementation
-            return LiquidGlassEffectView(effect: effect)
-        }
+        // Use custom Metal shader implementation (works on iOS 16+)
+        return LiquidGlassEffectView(effect: effect)
     } else {
         return UIVisualEffectView(effect: effect)
     }

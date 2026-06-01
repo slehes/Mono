@@ -10,7 +10,7 @@ struct GlassSlider: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    func makeUIView(context: Context) -> some UIControl {
+    func makeUIView(context: Context) -> LiquidGlassSlider {
         let slider = LiquidGlassSlider.make(isNative: true)
         slider.minimumValue = range.lowerBound
         slider.maximumValue = range.upperBound

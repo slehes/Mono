@@ -593,10 +593,6 @@ extension UISwitch: AnySwitch { }
 
 extension LiquidGlassSwitch: AnySwitch {
     public static func make(isNative: Bool = true) -> AnySwitch {
-        if #available(iOS 26.0, *), isNative {
-            UISwitch()
-        } else {
-            LiquidGlassSwitch()
-        }
+        LiquidGlassSwitch()
     }
 }

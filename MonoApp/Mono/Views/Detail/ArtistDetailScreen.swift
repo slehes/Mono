@@ -129,7 +129,4 @@ struct ArtistDetailScreen: View {
     }
 }
 
-extension MonoArtist: Hashable {
-    public static func == (lhs: MonoArtist, rhs: MonoArtist) -> Bool { lhs.id == rhs.id }
-    public func hash(into hasher: inout Hasher) { hasher.combine(id) }
-}
+

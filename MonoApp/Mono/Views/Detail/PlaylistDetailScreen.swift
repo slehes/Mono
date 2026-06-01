@@ -86,7 +86,4 @@ struct PlaylistDetailScreen: View {
     }
 }
 
-extension MonoPlaylist: Hashable {
-    public static func == (lhs: MonoPlaylist, rhs: MonoPlaylist) -> Bool { lhs.id == rhs.id }
-    public func hash(into hasher: inout Hasher) { hasher.combine(id) }
-}
+
