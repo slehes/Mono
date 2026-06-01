@@ -2,7 +2,7 @@ name: Mono
 options:
   deploymentTarget:
     iOS: "16.0"
-  xcodeVersion: "15"
+  xcodeVersion: "16"
   createIntermediateGroups: true
   defaultConfig: Debug
 
